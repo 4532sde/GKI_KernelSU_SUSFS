@@ -53,7 +53,9 @@ jobs:
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
       CCACHE_NOHASHDIR: "true"
       CCACHE_HARDLINK: "true"
-
+      KSU_EXPECTED_SIZE: = "0x330"
+      KSU_MANAGER_PACKAGE: "com.sharkx.manager"
+      KSU_EXPECTED_HASH: "4ce239bc291bfc6589a1c01cf78c3db32dba5547c1c038bdc1d67c443543a193"
     steps:
       - name: Maximize Build Space
         uses: AdityaGarg8/remove-unwanted-software@v5
@@ -78,12 +80,7 @@ jobs:
 
           echo "CONFIG set to: $CONFIG"
 
-      # Install ccache
-      - name: 尝试指定管理器
-        env:
-          KSU_EXPECTED_SIZE: = "0x330"
-          KSU_MANAGER_PACKAGE: "com.sharkx.manager"
-          KSU_EXPECTED_HASH: "4ce239bc291bfc6589a1c01cf78c3db32dba5547c1c038bdc1d67c443543a193"
+          
       - name: 安装 ccache
         run: sudo apt update && sudo apt upgrade -y && sudo apt install -y ccache python3 git curl
 
