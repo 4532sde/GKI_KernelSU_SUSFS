@@ -228,7 +228,36 @@ jobs:
             echo "Adding KernelSU SukiSU..."
             curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash $BRANCH
           fi
+          
+      - name: 修改 KernelSU Makefile 签名常量
+        run: |
+          echo "Modifying KernelSU Makefile constants..."
+          cd "$CONFIG"
+          if [ "${{ inputs.kernelsu_variant }}" == "Official" ] || [ "${{ inputs.kernelsu_variant }}" == "MKSU" ]; then
+            KSU_DIR="KernelSU"
+          elif [ "${{ inputs.kernelsu_variant }}" == "Next" ]; then
+            KSU_DIR="KernelSU-Next"
+          elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU" ]; then
+            KSU_DIR="KernelSU"
+          else
+            echo "Invalid KernelSU variant!"
+            exit 1
+          fi
+          
+          cd "$KSU_DIR"
+          
+          echo "设置新的大小值: 0x330"
+          sed -i 's/KSU_EXPECTED_SIZE := 0x35c/KSU_EXPECTED_SIZE := 0x330/' Makefile
+          
+          echo "设置新的哈希值: 47ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef"
+          sed -i 's/KSU_EXPECTED_HASH := 947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef/KSU_EXPECTED_HASH := 47ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef/' Makefile
+          
+          echo "验证修改:"
+          grep "KSU_EXPECTED_SIZE" Makefile
+          grep "KSU_EXPECTED_HASH" Makefile
+          cp Makefile modified_Makefile
 
+          
       - name: 为 KernelSU 变体安装 SUSFS 补丁
         run: |
           echo "Changing to configuration directory: $CONFIG..."
