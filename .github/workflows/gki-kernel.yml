@@ -255,7 +255,7 @@ jobs:
           echo "设置新的大小值: 0x330"
           sed -i 's/KSU_EXPECTED_SIZE := 0x35c/KSU_EXPECTED_SIZE := 0x330/' Makefile
           echo "设置新的哈希值: 47ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef"
-          sed -i 's/KSU_EXPECTED_HASH := 947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef/KSU_EXPECTED_HASH := 47ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef/' Makefile
+          sed -i 's/KSU_EXPECTED_HASH := 947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef/KSU_EXPECTED_HASH := 4ce239bc291bfc6589a1c01cf78c3db32dba5547c1c038bdc1d67c443543a193/' Makefile
           grep "KSU_EXPECTED_SIZE" Makefile
           grep "KSU_EXPECTED_HASH" Makefile
           cp Makefile modified_Makefile
