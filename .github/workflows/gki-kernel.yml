@@ -511,8 +511,7 @@ jobs:
             sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl
             # sed -E -i '/^CONFIG_LOCALVERSION=/ s/(.*)"$/\1"/' ./common/arch/arm64/configs/gki_defconfig
             if [ ! -z ${{ inputs.version }} ]; then
-              sed -i '/^CONFIG_LOCALVERSION=/ s/="\([^"]*\)"/="${{ inputs.version }}"/' ./common/arch/arm64/configs/gki_defconfig
-            fi
+              sed -i '/^CONFIG_LOCALVERSION=/ s/="$[^"]*$"/="6.6.66-android15-8-geae86f166c48-abogki367569362-4k"/' ./common/arch/arm64/configs/gki_defconfig
           fi
 
       - name: Build with retry
