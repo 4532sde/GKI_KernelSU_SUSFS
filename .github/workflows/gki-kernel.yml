@@ -259,7 +259,34 @@ jobs:
           grep "KSU_EXPECTED_SIZE" Makefile
           grep "KSU_EXPECTED_HASH" Makefile
           cp Makefile modified_Makefile
+          
+      - name: 修改 KernelSU CLI 默认包名
+        run: |
+          echo "修改 cli.rs 中的默认包名配置..."
+          cd "$CONFIG"
+          
+          # 根据变体确定路径
+          if [ "${{ inputs.kernelsu_variant }}" == "Official" ] || [ "${{ inputs.kernelsu_variant }}" == "MKSU" ]; then
+            KSU_DIR="KernelSU"
+          elif [ "${{ inputs.kernelsu_variant }}" == "Next" ]; then
+            KSU_DIR="KernelSU-Next"
+          elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU" ]; then
+            KSU_DIR="KernelSU"
+          fi
 
+          # 目标文件路径
+          TARGET_FILE="$KSU_DIR/userspace/ksud/src/cli.rs"
+          
+          # 检查文件是否存在
+          if [ ! -f "$TARGET_FILE" ]; then
+            echo "错误：找不到文件 $TARGET_FILE"
+            exit 1
+          fi
+          
+          # 执行替换
+          sed -i 's/#[arg(default_value_t = String::from("me.weishu.kernelsu"))]/#[arg(default_value_t = String::from("com.sharkx.manager"))]/' "$TARGET_FILE"
+          
+          echo "已将默认包名修改为 com.sharkx.manager"
           
       - name: 为 KernelSU 变体安装 SUSFS 补丁
         run: |
