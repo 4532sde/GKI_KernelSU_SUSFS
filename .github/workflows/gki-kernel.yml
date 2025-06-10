@@ -79,6 +79,11 @@ jobs:
           echo "CONFIG set to: $CONFIG"
 
       # Install ccache
+      - name: 尝试指定管理器
+        env:
+          KSU_EXPECTED_SIZE: = "0x330"
+          KSU_MANAGER_PACKAGE: "com.sharkx.manager"
+          KSU_EXPECTED_HASH: "4ce239bc291bfc6589a1c01cf78c3db32dba5547c1c038bdc1d67c443543a193"
       - name: 安装 ccache
         run: sudo apt update && sudo apt upgrade -y && sudo apt install -y ccache python3 git curl
 
@@ -229,36 +234,36 @@ jobs:
             curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash $BRANCH
           fi
           
-      - name: 修改 KernelSU Makefile 签名常量
-        run: |
-          echo "Modifying KernelSU Makefile constants..."
-          cd "$CONFIG"
+      # - name: 修改 KernelSU Makefile 签名常量
+      #   run: |
+      #     echo "Modifying KernelSU Makefile constants..."
+      #     cd "$CONFIG"
           
-          if [ "${{ inputs.kernelsu_variant }}" == "Official" ] || [ "${{ inputs.kernelsu_variant }}" == "MKSU" ]; then
-            KSU_DIR="KernelSU/kernel"
-          elif [ "${{ inputs.kernelsu_variant }}" == "Next" ]; then
-            KSU_DIR="KernelSU-Next/kernel"
-          elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU" ]; then
-            KSU_DIR="KernelSU/kernel"
-          else
-            echo "Invalid KernelSU variant!"
-            exit 1
-          fi
-          if [ ! -d "$KSU_DIR" ]; then
-            echo "错误：找不到 KernelSU 目录: $KSU_DIR"
-            echo "当前目录内容："
-            ls -l
-            exit 1
-          fi
-          cd "$KSU_DIR"
-          echo "当前工作目录: $(pwd)"
-          echo "设置新的大小值: 0x330"
-          sed -i 's/KSU_EXPECTED_SIZE := 0x35c/KSU_EXPECTED_SIZE := 0x330/' Makefile
-          echo "设置新的哈希值: 4ce239bc291bfc6589a1c01cf78c3db32dba5547c1c038bdc1d67c443543a193"
-          sed -i 's/KSU_EXPECTED_HASH := 947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef/KSU_EXPECTED_HASH := 4ce239bc291bfc6589a1c01cf78c3db32dba5547c1c038bdc1d67c443543a193/' Makefile
-          grep "KSU_EXPECTED_SIZE" Makefile
-          grep "KSU_EXPECTED_HASH" Makefile
-          cp Makefile modified_Makefile
+      #     if [ "${{ inputs.kernelsu_variant }}" == "Official" ] || [ "${{ inputs.kernelsu_variant }}" == "MKSU" ]; then
+      #       KSU_DIR="KernelSU/kernel"
+      #     elif [ "${{ inputs.kernelsu_variant }}" == "Next" ]; then
+      #       KSU_DIR="KernelSU-Next/kernel"
+      #     elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU" ]; then
+      #       KSU_DIR="KernelSU/kernel"
+      #     else
+      #       echo "Invalid KernelSU variant!"
+      #       exit 1
+      #     fi
+      #     if [ ! -d "$KSU_DIR" ]; then
+      #       echo "错误：找不到 KernelSU 目录: $KSU_DIR"
+      #       echo "当前目录内容："
+      #       ls -l
+      #       exit 1
+      #     fi
+      #     cd "$KSU_DIR"
+      #     echo "当前工作目录: $(pwd)"
+      #     echo "设置新的大小值: 0x330"
+      #     sed -i 's/KSU_EXPECTED_SIZE := 0x35c/KSU_EXPECTED_SIZE := 0x330/' Makefile
+      #     echo "设置新的哈希值: 4ce239bc291bfc6589a1c01cf78c3db32dba5547c1c038bdc1d67c443543a193"
+      #     sed -i 's/KSU_EXPECTED_HASH := 947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef/KSU_EXPECTED_HASH := 4ce239bc291bfc6589a1c01cf78c3db32dba5547c1c038bdc1d67c443543a193/' Makefile
+      #     grep "KSU_EXPECTED_SIZE" Makefile
+      #     grep "KSU_EXPECTED_HASH" Makefile
+      #     cp Makefile modified_Makefile
           
       # - name: 修改 KernelSU CLI 默认包名
       #   run: |
