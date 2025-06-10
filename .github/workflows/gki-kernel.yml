@@ -319,7 +319,7 @@ jobs:
           FORMATTED_BRANCH="${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}"
           if [ "$FORMATTED_BRANCH" == "android15-6.6-2024-08" ] || [ "$FORMATTED_BRANCH" == "android15-6.6-2024-09" ]; then
             echo "Applying fix 6.6.30 6.6.30&46 patches"
-            curl -LSs https://github.com/zzh20188/GKI_KernelSU_SUSFS/raw/refs/heads/fix/fix6.6.patch -o test.patch
+            curl -LSs https://github.com/4532sde/GKI_KernelSU_SUSFS/raw/main/fix6.6.patch -o test.patch
             patch -p1 < test.patch || true
           fi
       - name: 应用新的HOOKS补丁
@@ -512,6 +512,7 @@ jobs:
             # sed -E -i '/^CONFIG_LOCALVERSION=/ s/(.*)"$/\1"/' ./common/arch/arm64/configs/gki_defconfig
             if [ ! -z ${{ inputs.version }} ]; then
               sed -i '/^CONFIG_LOCALVERSION=/ s/="$[^"]*$"/="6.6.66-android15-8-geae86f166c48-abogki367569362-4k"/' ./common/arch/arm64/configs/gki_defconfig
+            fi
           fi
 
       - name: Build with retry
