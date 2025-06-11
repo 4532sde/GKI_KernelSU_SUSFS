@@ -53,9 +53,6 @@ jobs:
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
       CCACHE_NOHASHDIR: "true"
       CCACHE_HARDLINK: "true"
-      KSU_EXPECTED_SIZE: = 0x330
-      KSU_MANAGER_PACKAGE: "com.sharkx.manager"
-      KSU_EXPECTED_HASH: "4ce239bc291bfc6589a1c01cf78c3db32dba5547c1c038bdc1d67c443543a193"
     steps:
       - name: Maximize Build Space
         uses: AdityaGarg8/remove-unwanted-software@v5
@@ -216,20 +213,21 @@ jobs:
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-
-          if [ "${{ inputs.kernelsu_variant }}" == "Official" ]; then
-            echo "Adding KernelSU Official..."
-            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash $BRANCH
-          elif [ "${{ inputs.kernelsu_variant }}" == "Next" ]; then
-            echo "Adding KernelSU Next..."
-            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash $BRANCH
-          elif [ "${{ inputs.kernelsu_variant }}" == "MKSU" ]; then
-            echo "Adding KernelSU MKSU..."
-            curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/main/kernel/setup.sh" | bash $BRANCH
-          elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU" ]; then
-            echo "Adding KernelSU SukiSU..."
-            curl -LSs "https://raw.githubusercontent.com/4532sde/SukiSU-Ultra/main/kernel/setup.sh" | bash $BRANCH
-          fi
+          echo "Adding KernelSU SukiSU..."
+          curl -LSs "https://raw.githubusercontent.com/4532sde/SukiSU-Ultra/main/kernel/setup.sh" | bash susfs-stable
+          # if [ "${{ inputs.kernelsu_variant }}" == "Official" ]; then
+          #   echo "Adding KernelSU Official..."
+          #   curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash $BRANCH
+          # elif [ "${{ inputs.kernelsu_variant }}" == "Next" ]; then
+          #   echo "Adding KernelSU Next..."
+          #   curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash $BRANCH
+          # elif [ "${{ inputs.kernelsu_variant }}" == "MKSU" ]; then
+          #   echo "Adding KernelSU MKSU..."
+          #   curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/main/kernel/setup.sh" | bash $BRANCH
+          # elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU" ]; then
+          #   echo "Adding KernelSU SukiSU..."
+          #   curl -LSs "https://raw.githubusercontent.com/4532sde/SukiSU-Ultra/main/kernel/setup.sh" | bash $BRANCH
+          # fi
           
       # - name: 修改 KernelSU Makefile 签名常量
       #   run: |
@@ -331,11 +329,13 @@ jobs:
             patch -p1 < mksu_susfs.patch || true
             cp ../../kernel_patches/mksu/fix.patch ./
             patch -p1 < fix.patch || true
+
+
+
+
           elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU" ]; then
             echo "Applying SUSFS patches for SukiSU..."
              cd ./KernelSU
-
-
             echo "Applying SukiSU specific SUSFS patch..."
           else
             echo "Invalid KernelSU variant selected!"
@@ -513,11 +513,6 @@ jobs:
           echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-
-      # - name: 尝试再次指定管理器
-      #   env:
-      #     KSU_MANAGER_PACKAGE: "com.sharkx.manager"
-      #     KSU_EXPECTED_HASH: "4ce239bc291bfc6589a1c01cf78c3db32dba5547c1c038bdc1d67c443543a193"
           
       - name: 配置内核名称
         run: |
