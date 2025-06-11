@@ -214,7 +214,7 @@ jobs:
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           echo "Adding KernelSU SukiSU..."
-          curl -LSs "https://raw.githubusercontent.com/4532sde/SukiSU-Ultra/main/kernel/setup.sh" | bash susfs-stable
+          curl -LSs "https://raw.githubusercontent.com/4532sde/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-dev
           # if [ "${{ inputs.kernelsu_variant }}" == "Official" ]; then
           #   echo "Adding KernelSU Official..."
           #   curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash $BRANCH
