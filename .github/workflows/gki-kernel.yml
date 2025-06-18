@@ -489,10 +489,9 @@ jobs:
           if [ ! -z ${{ inputs.version }} ]; then
             echo "版本号不为空"
             sed -i '$s|echo "\$res"|echo "${{ inputs.version }}"|' ./common/scripts/setlocalversion
-            sed -i 's/^VERSION = .*/VERSION = 6/' Makefile
-            sed -i 's/^PATCHLEVEL = .*/PATCHLEVEL = 6/' Makefile
-            sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 30/' Makefile
-            sed -i 's/^EXTRAVERSION =.*/EXTRAVERSION = -${{ inputs.version }}/' Makefile
+            sed -i 's/^VERSION = .*/VERSION = 6/' common/Makefile
+            sed -i 's/^PATCHLEVEL = .*/PATCHLEVEL = 6/' common/Makefile
+            sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 30/' common/Makefile
           else
             echo "版本号为空，使用默认值"
             sed -i '$s|echo "\$res"|echo "\$8-4K"|' ./common/scripts/setlocalversion
