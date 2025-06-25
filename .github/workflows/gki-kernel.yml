@@ -503,21 +503,24 @@ jobs:
           if [ ! -z ${{ inputs.version }} ]; then
             echo "版本号不为空"
             sed -i '$s|echo "\$res"|echo "${{ inputs.version }}"|' ./common/scripts/setlocalversion
-            # sed -i 's/^VERSION = .*/VERSION = 6/' common/Makefile
-            # sed -i 's/^PATCHLEVEL = .*/PATCHLEVEL = 6/' common/Makefile
-            # sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 30/' common/Makefile
+            sed -i 's/^VERSION = .*/VERSION = 6/' common/Makefile
+            sed -i 's/^PATCHLEVEL = .*/PATCHLEVEL = 6/' common/Makefile
+            sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 30/' common/Makefile
           else
             echo "版本号为空，使用默认值"
             sed -i '$s|echo "\$res"|echo "\$8-4K"|' ./common/scripts/setlocalversion
           fi
 
           CURRENT_TIME="Mon Sep 16 14:52:44 UTC 2024" 
+          # CURRENT_TIME="Sat Jun 07 06:29:29 UTC 2025"
           echo "CURRENT_TIME=$CURRENT_TIME"
           perl -pi -e "s{UTS_VERSION=\"\\\$\(echo \\\$UTS_VERSION \\\$CONFIG_FLAGS \\\$TIMESTAMP \\| cut -b -\\\$UTS_LEN\)\"}{UTS_VERSION=\"#1 SMP PREEMPT $CURRENT_TIME\"}" ./common/scripts/mkcompile_h
+          
           if [ -f "build/build.sh" ]; then
             sed -i 's/-dirty//' ./common/scripts/setlocalversion
           else
-            sed -i 's/build-timestamp = $(or $(KBUILD_BUILD_TIMESTAMP), $(build-timestamp-auto))/build-timestamp = "$CURRENT_TIME"/' ./common/init/Makefile
+            #sed -i 's/build-timestamp = $(or $(KBUILD_BUILD_TIMESTAMP), $(build-timestamp-auto))/build-timestamp = "$CURRENT_TIME"/' ./common/init/Makefile
+            sed -i "s/build-timestamp = \$(or \$(KBUILD_BUILD_TIMESTAMP), \$(build-timestamp-auto))/build-timestamp = \"$CURRENT_TIME\"/" ./common/init/Makefile
             sed -i '/^[[:space:]]*"protected_exports_list"[[:space:]]*:[[:space:]]*"android\/abi_gki_protected_exports_aarch64",$/d' ./common/BUILD.bazel
             rm -rf ./common/android/abi_gki_protected_exports_*
             sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl
