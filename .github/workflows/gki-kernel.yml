@@ -154,6 +154,16 @@ jobs:
           git clone https://github.com/WildPlusKernel/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           git clone https://github.com/WildPlusKernel/kernel_patches.git
+          #临时修复6.6
+          if [[ "${{ inputs.kernel_version }}" == "6.6" ]]; then
+            TARGET_COMMIT="09fec8aa1f39807788c526dd84429f6d92b805ae"
+            cd susfs4ksu
+            # -------------------------------- #
+            git checkout "$TARGET_COMMIT"
+            git log -1 --pretty=oneline
+            # -------------------------------- #
+            cd ..
+          fi
           # Sukisu的补丁仓库
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
           
