@@ -511,7 +511,7 @@ jobs:
             sed -i '$s|echo "\$res"|echo "\$8-4K"|' ./common/scripts/setlocalversion
           fi
 
-          CURRENT_TIME="Mon Sep 16 14:52:44 UTC 2024" 
+          CURRENT_TIME="Mon Sep 16 14:52:44 UTC 2024"
           # CURRENT_TIME="Sat Jun 07 06:29:29 UTC 2025"
           echo "CURRENT_TIME=$CURRENT_TIME"
           perl -pi -e "s{UTS_VERSION=\"\\\$\(echo \\\$UTS_VERSION \\\$CONFIG_FLAGS \\\$TIMESTAMP \\| cut -b -\\\$UTS_LEN\)\"}{UTS_VERSION=\"#1 SMP PREEMPT $CURRENT_TIME\"}" ./common/scripts/mkcompile_h
