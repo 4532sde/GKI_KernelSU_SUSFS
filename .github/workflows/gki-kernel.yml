@@ -209,7 +209,18 @@ jobs:
             patch -p1 < fix_5.15.legacy.patch
           fi
 
-      - name: 应用部分gki增强
+      - name: 从 main 分支动态下载 patchblock 文件夹
+        run: |
+          echo "正在从 main 分支下载最新的 patchblock..."
+          curl -L -o main.zip https://github.com/4532sde/GKI_KernelSU_SUSFS/archive/refs/heads/main.zip
+          unzip main.zip 'GKI_KernelSU_SUSFS-main/patchblock/*'
+          mv GKI_KernelSU_SUSFS-main/patchblock ./patchblock
+          rm main.zip
+          rm -rf GKI_KernelSU_SUSFS-main
+          echo "patchblock 下载并放置完成，目录内容如下:"
+          ls -l patchblock
+
+      - name: 复制补丁到 block 目录
         run: |
           echo "当前工作目录是 $(pwd)，将开始复制文件..."
           echo "源: ./patchblock/"
