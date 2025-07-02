@@ -571,7 +571,7 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
 {
 	if (q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
 		return NULL;
-#ifdef CONFIG_MQ_IOSCHED_DEFAULT_ADIOSAdd commentMore actions
+#ifdef CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
 	return elevator_find_get(q, "adios");
 #else // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
 
