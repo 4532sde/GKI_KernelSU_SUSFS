@@ -211,14 +211,35 @@ jobs:
 
       - name: 从 main 分支动态下载 patchblock 文件夹
         run: |
-          echo "正在从 main 分支下载最新的 patchblock..."
+          echo "正在从 main 分支下载最新的 patchblock 和 patchme..."
           curl -L -o main.zip https://github.com/4532sde/GKI_KernelSU_SUSFS/archive/refs/heads/main.zip
-          unzip main.zip 'GKI_KernelSU_SUSFS-main/patchblock/*'
+          unzip main.zip 'GKI_KernelSU_SUSFS-main/patchblock/*' 'GKI_KernelSU_SUSFS-main/patchme/*'
           mv GKI_KernelSU_SUSFS-main/patchblock ./patchblock
+          mv GKI_KernelSU_SUSFS-main/patchme ./patchme
           rm main.zip
           rm -rf GKI_KernelSU_SUSFS-main
-          echo "patchblock 下载并放置完成，目录内容如下:"
+          echo "patchblock 和 patchme 下载并放置完成，目录内容如下:"
+          echo "--- patchblock ---"
           ls -l patchblock
+          echo "--- patchme ---"
+          ls -l patchme
+          
+      - name: 应用自定义补丁 (来自 patchme 目录)
+        run: |
+          echo "准备应用自定义补丁..."
+          PATCH_FILE="./patchme/mypatch1.patch"
+          KERNEL_DIR="./$CONFIG/common" # 假设 $CONFIG 是一个环境变量
+          if [ ! -f "$PATCH_FILE" ]; then
+            echo "::error::自定义补丁文件未找到: $PATCH_FILE"
+            exit 1
+          fi
+          echo "补丁文件: $PATCH_FILE"
+          echo "目标内核目录: $KERNEL_DIR"
+          echo "-> 正在检查补丁是否能被干净应用..."
+          git -C "$KERNEL_DIR" apply --check "$PATCH_FILE"
+          echo "-> 检查通过，正在应用补丁..."
+          git -C "$KERNEL_DIR" apply --verbose "$PATCH_FILE"
+          echo "✅ 自定义补丁应用成功。"
 
       - name: 复制补丁到 block 目录
         run: |
