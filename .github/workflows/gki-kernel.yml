@@ -227,7 +227,7 @@ jobs:
       - name: 应用自定义补丁 (来自 patchme 目录)
         run: |
           echo "准备应用自定义补丁..."
-          PATCH_FILE="./patchme/mypatch1.patch"
+          PATCH_FILE="${{ github.workspace }}/patchme/mypatch1.patch"
           KERNEL_DIR="./$CONFIG/common" # 假设 $CONFIG 是一个环境变量
           if [ ! -f "$PATCH_FILE" ]; then
             echo "::error::自定义补丁文件未找到: $PATCH_FILE"
