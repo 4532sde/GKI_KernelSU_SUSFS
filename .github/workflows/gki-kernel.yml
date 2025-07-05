@@ -491,9 +491,7 @@ jobs:
           echo "CONFIG_DEFAULT_BBR=y" >> "$CONFIG_FILE"
           echo "CONFIG_ZRAM_WRITEBACK=y" >> "$CONFIG_FILE"
           echo "CONFIG_ZRAM_DEF_COMP_LZ4=y" >> "$CONFIG_FILE"
-          echo "CONFIG_ZSMALLOC=y" >> "$CONFIG_FILE"
-          sed -i 's/CONFIG_ZRAM=m/CONFIG_ZRAM=y/g' "$CONFIG_FILE"
-          
+        
            
       - name: 添加SUSFS配置设置
         run: |
