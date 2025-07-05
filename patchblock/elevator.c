@@ -723,8 +723,17 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 {
 	struct elevator_type *e;
 	int ret;
+#ifdef CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
+	if (strcmp(elevator_name, "cpq1") == 0) {
+        pr_warn("IO-SCHED: Intercepted 'cpq1' request, mapping to actual 'cpq' scheduler.\n");
+        elevator_name = "cpq";
+    } 
+	else if (strcmp(elevator_name, "cpq") == 0) {
+        pr_warn("IO-SCHED: Intercepted 'cpq' request, falling back to 'mq-deadline'.\n");
+        elevator_name = "adios";
+    }
+#else // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
 
-	/* Make sure queue is not in the middle of being removed */
 	if (!blk_queue_registered(q))
 		return -ENOENT;
 
