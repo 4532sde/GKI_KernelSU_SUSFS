@@ -732,7 +732,7 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
         pr_warn("IO-SCHED: Intercepted 'cpq' request, falling back to 'mq-deadline'.\n");
         elevator_name = "adios";
     }
-#else // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
+#endif // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
 
 	if (!blk_queue_registered(q))
 		return -ENOENT;
