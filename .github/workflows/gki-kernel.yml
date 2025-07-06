@@ -489,8 +489,15 @@ jobs:
           CONFIG_FILE="$CONFIG/common/arch/arm64/configs/gki_defconfig"
           echo "Changing to configuration directory: $CONFIG_FILE..."
           echo "CONFIG_DEFAULT_BBR=y" >> "$CONFIG_FILE"
-          echo "CONFIG_ZRAM_WRITEBACK=y" >> "$CONFIG_FILE"
+          #echo "CONFIG_ZRAM_WRITEBACK=y" >> "$CONFIG_FILE"
           echo "CONFIG_ZRAM_DEF_COMP_LZ4=y" >> "$CONFIG_FILE"
+          echo "CONFIG_ZSMALLOC=y" >> "$CONFIG_FILE"
+          sed -i 's/CONFIG_ZRAM=m/CONFIG_ZRAM=y/g' "$CONFIG_FILE"
+          sed -i 's/"drivers\/block\/zram\/zram\.ko",//g; s/"mm\/zsmalloc\.ko",//g' "$CONFIG/common/modules.bzl"
+          echo "CONFIG_MODULE_SIG_FORCE=n" >> "$CONFIG_FILE"
+          echo 'Android14_Bazel:已修复zram&zsmalloc'
+
+
         
            
       - name: 添加SUSFS配置设置
