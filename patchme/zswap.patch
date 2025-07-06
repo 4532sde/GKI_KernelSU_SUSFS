@@ -1,0 +1,155 @@
+From 8fee6cd2bbfb4e8dfbe4f256a6e14bf0783bae3d Mon Sep 17 00:00:00 2001
+From: brokestar233 <3765589194@qq.com>
+Date: Mon, 23 Jun 2025 20:09:58 +0800
+Subject: [PATCH] BACKPORT: zswap
+
+Signed-off-by: brokestar233 <3765589194@qq.com>
+---
+ Documentation/admin-guide/mm/transhuge.rst |  8 ++++++--
+ include/linux/huge_mm.h                    |  1 +
+ include/linux/memcontrol.h                 |  6 ++++++
+ include/linux/zswap.h                      |  6 ++++++
+ mm/huge_memory.c                           |  2 ++
+ mm/memcontrol.c                            | 11 +++++++++++
+ mm/zswap.c                                 |  5 +++++
+ 7 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/Documentation/admin-guide/mm/transhuge.rst b/Documentation/admin-guide/mm/transhuge.rst
+index 7cebb21b7b16e..80338e0787f86 100644
+--- a/Documentation/admin-guide/mm/transhuge.rst
++++ b/Documentation/admin-guide/mm/transhuge.rst
+@@ -502,10 +502,14 @@ anon_fault_fallback_charge
+ 	instead falls back to using huge pages with lower orders or
+ 	small pages even though the allocation was successful.
+ 
+-swpout
+-	is incremented every time a huge page is swapped out in one
++zswpout
++	is incremented every time a huge page is swapped out to zswap in one
+ 	piece without splitting.
+ 
++swpout
++	is incremented every time a huge page is swapped out to a non-zswap
++	swap device in one piece without splitting.
++
+ swpout_fallback
+ 	is incremented if a huge page has to be split before swapout.
+ 	Usually because failed to allocate some continuous swap space
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index f58c44dfc06ba..1671c017b8db8 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -262,6 +262,7 @@ enum mthp_stat_item {
+ 	MTHP_STAT_ANON_FAULT_ALLOC,
+ 	MTHP_STAT_ANON_FAULT_FALLBACK,
+ 	MTHP_STAT_ANON_FAULT_FALLBACK_CHARGE,
++	MTHP_STAT_ZSWPOUT,
+ 	MTHP_STAT_SWPOUT,
+ 	MTHP_STAT_SWPOUT_FALLBACK,
+ 	MTHP_STAT_SPLIT,
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 110e699ef4941..f4e94edfda299 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -1917,6 +1917,7 @@ static inline void count_objcg_event(struct obj_cgroup *objcg,
+ bool obj_cgroup_may_zswap(struct obj_cgroup *objcg);
+ void obj_cgroup_charge_zswap(struct obj_cgroup *objcg, size_t size);
+ void obj_cgroup_uncharge_zswap(struct obj_cgroup *objcg, size_t size);
++bool mem_cgroup_zswap_writeback_enabled(struct mem_cgroup *memcg);
+ #else
+ static inline bool obj_cgroup_may_zswap(struct obj_cgroup *objcg)
+ {
+@@ -1930,6 +1931,11 @@ static inline void obj_cgroup_uncharge_zswap(struct obj_cgroup *objcg,
+ 					     size_t size)
+ {
+ }
++static inline bool mem_cgroup_zswap_writeback_enabled(struct mem_cgroup *memcg)
++{
++	/* if zswap is disabled, do not block pages going to the swapping device */
++	return true;
++}
+ #endif
+ 
+ #endif /* _LINUX_MEMCONTROL_H */
+diff --git a/include/linux/zswap.h b/include/linux/zswap.h
+index f647ee38598a6..14255b0788aa5 100644
+--- a/include/linux/zswap.h
++++ b/include/linux/zswap.h
+@@ -15,6 +15,7 @@ bool zswap_load(struct folio *folio);
+ void zswap_invalidate(int type, pgoff_t offset);
+ void zswap_swapon(int type);
+ void zswap_swapoff(int type);
++bool zswap_is_enabled(void);
+ bool zswap_never_enabled(void);
+ 
+ #else
+@@ -33,6 +34,11 @@ static inline void zswap_invalidate(int type, pgoff_t offset) {}
+ static inline void zswap_swapon(int type) {}
+ static inline void zswap_swapoff(int type) {}
+ 
++static inline bool zswap_is_enabled(void)
++{
++	return false;
++}
++
+ static inline bool zswap_never_enabled(void)
+ {
+ 	return true;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 6ac6febf6fad8..d39ee7fd72f17 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -576,6 +576,7 @@ static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
+ DEFINE_MTHP_STAT_ATTR(anon_fault_alloc, MTHP_STAT_ANON_FAULT_ALLOC);
+ DEFINE_MTHP_STAT_ATTR(anon_fault_fallback, MTHP_STAT_ANON_FAULT_FALLBACK);
+ DEFINE_MTHP_STAT_ATTR(anon_fault_fallback_charge, MTHP_STAT_ANON_FAULT_FALLBACK_CHARGE);
++DEFINE_MTHP_STAT_ATTR(zswpout, MTHP_STAT_ZSWPOUT);
+ DEFINE_MTHP_STAT_ATTR(swpout, MTHP_STAT_SWPOUT);
+ DEFINE_MTHP_STAT_ATTR(swpout_fallback, MTHP_STAT_SWPOUT_FALLBACK);
+ DEFINE_MTHP_STAT_ATTR(split, MTHP_STAT_SPLIT);
+@@ -586,6 +587,7 @@ static struct attribute *stats_attrs[] = {
+ 	&anon_fault_alloc_attr.attr,
+ 	&anon_fault_fallback_attr.attr,
+ 	&anon_fault_fallback_charge_attr.attr,
++	&zswpout_attr.attr,
+ 	&swpout_attr.attr,
+ 	&swpout_fallback_attr.attr,
+ 	&split_attr.attr,
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2be7af3de20d4..5fd1f56260239 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -8075,6 +8075,17 @@ void obj_cgroup_uncharge_zswap(struct obj_cgroup *objcg, size_t size)
+ 	rcu_read_unlock();
+ }
+ 
++bool mem_cgroup_zswap_writeback_enabled(struct mem_cgroup *memcg)
++{
++	/* if zswap is disabled, do not block pages going to the swapping device */
++	if (!zswap_is_enabled())
++		return true;
++	for (; memcg; memcg = parent_mem_cgroup(memcg))
++		if (!READ_ONCE(memcg->zswap_writeback))
++			return false;
++	return true;
++}
++
+ static u64 zswap_current_read(struct cgroup_subsys_state *css,
+ 			      struct cftype *cft)
+ {
+diff --git a/mm/zswap.c b/mm/zswap.c
+index 8ad7c97fac191..6f96710d0c6a6 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -145,6 +145,11 @@ module_param_named(exclusive_loads, zswap_exclusive_loads_enabled, bool, 0644);
+ /* Number of zpools in zswap_pool (empirically determined for scalability) */
+ #define ZSWAP_NR_ZPOOLS 32
+ 
++bool zswap_is_enabled(void)
++{
++	return zswap_enabled;
++}
++
+ bool zswap_never_enabled(void)
+ {
+ 	return !static_branch_maybe(CONFIG_ZSWAP_DEFAULT_ON, &zswap_ever_enabled);
