@@ -182,7 +182,7 @@ index ceb2abded..38f3d0562 100644
 +	int "Default value for vm.anon_min_ratio"
 +	depends on SYSCTL
 +	range 0 100
-+	default 15
++	default 1
 +	help
 +	  This option sets the default value for vm.anon_min_ratio sysctl knob.
 +
@@ -200,7 +200,7 @@ index ceb2abded..38f3d0562 100644
 +	int "Default value for vm.clean_low_ratio"
 +	depends on SYSCTL
 +	range 0 100
-+	default 0
++	default 15
 +	help
 +	  This option sets the default value for vm.clean_low_ratio sysctl knob.
 +
@@ -222,7 +222,7 @@ index ceb2abded..38f3d0562 100644
 +	int "Default value for vm.clean_min_ratio"
 +	depends on SYSCTL
 +	range 0 100
-+	default 15
++	default 5
 +	help
 +	  This option sets the default value for vm.clean_min_ratio sysctl knob.
 +
@@ -252,7 +252,7 @@ index dad55dbde..5db4be147 100644
  		, K(totalhigh_pages())
  #endif
  		);
-+		printk(KERN_INFO "le9 Unofficial (le9uo) working set protection 1.14 by Masahito Suzuki (forked from hakavlad's original le9 patch)");
++		printk(KERN_INFO "le9 Unofficial (le9uo) working set protection 1.14a by Masahito Suzuki (forked from hakavlad's original le9 patch)");
  }
  
  /*
