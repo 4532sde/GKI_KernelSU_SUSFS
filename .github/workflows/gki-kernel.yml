@@ -212,10 +212,10 @@ jobs:
       - name: Revert some commit
         if: ${{ inputs.sub_level == '92' }}
         run: |
-          echo "检测到 sublevel 为 92，正在回滚提交 23472675461139103b12de6c6cb224475148baf6..."
+          echo "检测到 sublevel 为 92，正在回滚提交 f77653a633c5c3ce9f45fe22966a1448fdff2629..."
           KERNEL_DIR="./$CONFIG/common"
           cd "$KERNEL_DIR"
-          git revert --no-edit 23472675461139103b12de6c6cb224475148baf6
+          git revert --no-edit f77653a633c5c3ce9f45fe22966a1448fdff2629
           if [ $? -eq 0 ]; then
             echo "✅ 提交回滚成功。"
           else
