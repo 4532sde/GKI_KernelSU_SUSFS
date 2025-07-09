@@ -9,8 +9,8 @@ Change-Id: Ie19f439eb804d4ecb82eba9d79d022d5ff581dde
  drivers/misc/Makefile                        |   1 +
  drivers/misc/sideinit/Kconfig                |   8 ++
  drivers/misc/sideinit/Makefile               |   2 +
- drivers/misc/sideinit/delayed_sysfs_writer.c | 141 +++++++++++++++++++
- 5 files changed, 155 insertions(+)
+ drivers/misc/sideinit/delayed_sysfs_writer.c | 133 ++++++++++++++++++
+ 5 files changed, 147 insertions(+)
  create mode 100644 drivers/misc/sideinit/Kconfig
  create mode 100644 drivers/misc/sideinit/Makefile
  create mode 100644 drivers/misc/sideinit/delayed_sysfs_writer.c
@@ -31,9 +31,9 @@ diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
 index 1c8873fd7..d2b7aebf6 100644
 --- a/drivers/misc/Makefile
 +++ b/drivers/misc/Makefile
-@@ -69,3 +69,4 @@ obj-$(CONFIG_TPS6594_ESM)	+= tps6594-esm.o
- obj-$(CONFIG_TPS6594_PFSM)	+= tps6594-pfsm.o
- obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
+@@ -69,3 +69,4 @@ obj-$(CONFIG_TPS6594_ESM) += tps6594-esm.o
+ obj-$(CONFIG_TPS6594_PFSM) += tps6594-pfsm.o
+ obj-$(CONFIG_UID_SYS_STATS)   += uid_sys_stats.o
  obj-$(CONFIG_PKVM_SMC_FILTER)  += pkvm-smc/
 +obj-$(CONFIG_DELAYED_SYSFS_WRITER) += sideinit/
 \ No newline at end of file
@@ -63,10 +63,10 @@ index 000000000..b6242dd30
 \ No newline at end of file
 diff --git a/drivers/misc/sideinit/delayed_sysfs_writer.c b/drivers/misc/sideinit/delayed_sysfs_writer.c
 new file mode 100644
-index 000000000..f845da545
+index 000000000..99f359c3a
 --- /dev/null
 +++ b/drivers/misc/sideinit/delayed_sysfs_writer.c
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,133 @@
 +// delayed_sysfs_writer.c
 +
 +#include <linux/module.h>
@@ -123,7 +123,7 @@ index 000000000..f845da545
 +static void delayed_writer_work_func(struct work_struct *work)
 +{
 +    unsigned int cpu;
-+    struct cpufreq_policy *policy;
++    struct cpufreq_policy policy;
 +    char path[256];
 +    const char *value_to_set = "95";
 +
@@ -141,12 +141,10 @@ index 000000000..f845da545
 +
 +    // 第一遍：找到系统中的最高CPU频率
 +    for_each_possible_cpu(cpu) {
-+        policy = cpufreq_get_policy(cpu);
-+        if (policy) {
-+            if (policy->cpuinfo.max_freq > highest_max_freq) {
-+                highest_max_freq = policy->cpuinfo.max_freq;
++        if (cpufreq_get_policy(&policy, cpu) == 0) {
++            if (policy.cpuinfo.max_freq > highest_max_freq) {
++                highest_max_freq = policy.cpuinfo.max_freq;
 +            }
-+            cpufreq_put_policy(policy);
 +        }
 +    }
 +
@@ -159,17 +157,15 @@ index 000000000..f845da545
 +
 +    // 第二遍：为所有匹配最高频率的 policy 设置参数
 +    for_each_possible_cpu(cpu) {
-+        policy = cpufreq_get_policy(cpu);
-+        if (policy && policy->cpuinfo.max_freq == highest_max_freq) {
-+            // 检查是否是 WALT governor，避免在其他 governor 上设置不存在的 sysfs
-+            if (policy->governor && strcmp(policy->governor->name, "walt") == 0) {
-+                 // policy->cpu 是该策略覆盖的第一个cpu号，通常 policy 文件夹也以此命名
-+                snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpufreq/policy%u/walt/hispeed_load", policy->cpu);
-+                kernel_write_file(path, value_to_set);
++        if (cpufreq_get_policy(&policy, cpu) == 0) {
++            if (policy.cpuinfo.max_freq == highest_max_freq) {
++                // 检查是否是 WALT governor，避免在其他 governor 上设置不存在的 sysfs
++                if (policy.governor && strcmp(policy.governor->name, "walt") == 0) {
++                     // policy.cpu 是该策略覆盖的第一个cpu号，通常 policy 文件夹也以此命名
++                    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpufreq/policy%u/walt/hispeed_load", policy.cpu);
++                    kernel_write_file(path, value_to_set);
++                }
 +            }
-+        }
-+        if (policy) {
-+            cpufreq_put_policy(policy);
 +        }
 +    }
 +}
@@ -206,9 +202,8 @@ index 000000000..f845da545
 +module_exit(delayed_writer_exit);
 +
 +MODULE_LICENSE("GPL");
-+MODULE_AUTHOR("sideway");
++MODULE_AUTHOR("4532sde");
 +MODULE_DESCRIPTION("A module to write to a sysfs file after a delay from boot.");
 \ No newline at end of file
 -- 
 2.25.1
-
