@@ -5,28 +5,16 @@ Subject: [PATCH] try add mod
 
 Change-Id: Ie19f439eb804d4ecb82eba9d79d022d5ff581dde
 ---
- arch/arm64/configs/gki_defconfig             |   2 +
  drivers/misc/Kconfig                         |   3 +
  drivers/misc/Makefile                        |   1 +
  drivers/misc/sideinit/Kconfig                |   8 ++
  drivers/misc/sideinit/Makefile               |   2 +
  drivers/misc/sideinit/delayed_sysfs_writer.c | 141 +++++++++++++++++++
- 6 files changed, 157 insertions(+)
+ 5 files changed, 155 insertions(+)
  create mode 100644 drivers/misc/sideinit/Kconfig
  create mode 100644 drivers/misc/sideinit/Makefile
  create mode 100644 drivers/misc/sideinit/delayed_sysfs_writer.c
 
-diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index 4d4a5b282..d14de997e 100644
---- a/arch/arm64/configs/gki_defconfig
-+++ b/arch/arm64/configs/gki_defconfig
-@@ -783,3 +783,5 @@ CONFIG_KUNIT_TEST=m
- CONFIG_KUNIT_EXAMPLE_TEST=m
- # CONFIG_KUNIT_DEFAULT_ENABLED is not set
- # CONFIG_RUNTIME_TESTING_MENU is not set
-+
-+CONFIG_DELAYED_SYSFS_WRITER=y
-\ No newline at end of file
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
 index 68aee8dba..157b024e2 100644
 --- a/drivers/misc/Kconfig
