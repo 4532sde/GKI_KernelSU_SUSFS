@@ -209,20 +209,35 @@ jobs:
             patch -p1 < fix_5.15.legacy.patch
           fi
 
-      - name: Revert some commit
+      - name: 在 sublevel 92 时直接替换UFS相关文件
         if: ${{ inputs.sub_level == '92' }}
         run: |
-          echo "检测到 sublevel 为 92，正在回滚提交 f77653a633c5c3ce9f45fe22966a1448fdff2629..."
-          KERNEL_DIR="./$CONFIG/common"
-          cd "$KERNEL_DIR"
-          git revert --no-edit f77653a633c5c3ce9f45fe22966a1448fdff2629
-          if [ $? -eq 0 ]; then
-            echo "✅ 提交回滚成功。"
+          echo "检测到 sublevel 为 92，正在复制UFS相关修复文件..."
+          KERNEL_COMMON_DIR="./$CONFIG/common" 
+          PATCHME_DIR="${GITHUB_WORKSPACE}/patchme" 
+
+          if [ -f "$PATCHME_DIR/ufshcd.c" ]; then
+            echo "复制 $PATCHME_DIR/ufshcd.c 到 $KERNEL_COMMON_DIR/drivers/ufs/core/"
+            cp "$PATCHME_DIR/ufshcd.c" "$KERNEL_COMMON_DIR/drivers/ufs/core/ufshcd.c"
           else
-            echo "::error::回滚提交失败，请手动检查冲突。"
-            exit 1
+            echo "::warning:: $PATCHME_DIR/ufshcd.c 未找到，跳过复制。"
           fi
-          cd -
+
+          if [ -f "$PATCHME_DIR/ufshcd.h" ]; then
+            echo "复制 $PATCHME_DIR/ufshcd.h 到 $KERNEL_COMMON_DIR/include/ufs/"
+            cp "$PATCHME_DIR/ufshcd.h" "$KERNEL_COMMON_DIR/include/ufs/ufshcd.h"
+          else
+            echo "::warning:: $PATCHME_DIR/ufshcd.h 未找到，跳过复制。"
+          fi
+
+          if [ -f "$PATCHME_DIR/ufshcd-priv.h" ]; then
+            echo "复制 $PATCHME_DIR/ufshcd-priv.h 到 $KERNEL_COMMON_DIR/include/ufs/"
+            cp "$PATCHME_DIR/ufshcd-priv.h" "$KERNEL_COMMON_DIR/include/ufs/ufshcd-priv.h"
+          else
+            echo "::warning:: $PATCHME_DIR/ufshcd-priv.h 未找到，跳过复制。"
+          fi
+          echo "✅ UFS相关修复文件复制完成。"
+        shell: /usr/bin/bash -e {0}
 
       - name: 从 main 分支动态下载 patchblock 文件夹
         run: |
