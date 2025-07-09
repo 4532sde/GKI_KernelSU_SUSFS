@@ -209,6 +209,21 @@ jobs:
             patch -p1 < fix_5.15.legacy.patch
           fi
 
+      - name: Revert some commit
+        if: ${{ inputs.sub_level == '92' }}
+        run: |
+          echo "检测到 sublevel 为 92，正在回滚提交 23472675461139103b12de6c6cb224475148baf6..."
+          KERNEL_DIR="./$CONFIG/common"
+          cd "$KERNEL_DIR"
+          git revert --no-edit 23472675461139103b12de6c6cb224475148baf6
+          if [ $? -eq 0 ]; then
+            echo "✅ 提交回滚成功。"
+          else
+            echo "::error::回滚提交失败，请手动检查冲突。"
+            exit 1
+          fi
+          cd -
+
       - name: 从 main 分支动态下载 patchblock 文件夹
         run: |
           echo "正在从 main 分支下载最新的 patchblock 和 patchme..."
