@@ -209,6 +209,22 @@ jobs:
             patch -p1 < fix_5.15.legacy.patch
           fi
 
+
+      - name: 从 main 分支动态下载 patchblock 文件夹
+        run: |
+          echo "正在从 main 分支下载最新的 patchblock 和 patchme..."
+          curl -L -o main.zip https://github.com/4532sde/GKI_KernelSU_SUSFS/archive/refs/heads/main.zip
+          unzip main.zip 'GKI_KernelSU_SUSFS-main/patchblock/*' 'GKI_KernelSU_SUSFS-main/patchme/*'
+          mv GKI_KernelSU_SUSFS-main/patchblock ./patchblock
+          mv GKI_KernelSU_SUSFS-main/patchme ./patchme
+          rm main.zip
+          rm -rf GKI_KernelSU_SUSFS-main
+          echo "patchblock 和 patchme 下载并放置完成，目录内容如下:"
+          echo "--- patchblock ---"
+          ls -l patchblock
+          echo "--- patchme ---"
+          ls -l patchme
+          
       - name: 在 sublevel 92 时直接替换UFS相关文件
         if: ${{ inputs.sub_level == '92' }}
         run: |
@@ -238,21 +254,6 @@ jobs:
           fi
           echo "✅ UFS相关修复文件复制完成。"
         shell: /usr/bin/bash -e {0}
-
-      - name: 从 main 分支动态下载 patchblock 文件夹
-        run: |
-          echo "正在从 main 分支下载最新的 patchblock 和 patchme..."
-          curl -L -o main.zip https://github.com/4532sde/GKI_KernelSU_SUSFS/archive/refs/heads/main.zip
-          unzip main.zip 'GKI_KernelSU_SUSFS-main/patchblock/*' 'GKI_KernelSU_SUSFS-main/patchme/*'
-          mv GKI_KernelSU_SUSFS-main/patchblock ./patchblock
-          mv GKI_KernelSU_SUSFS-main/patchme ./patchme
-          rm main.zip
-          rm -rf GKI_KernelSU_SUSFS-main
-          echo "patchblock 和 patchme 下载并放置完成，目录内容如下:"
-          echo "--- patchblock ---"
-          ls -l patchblock
-          echo "--- patchme ---"
-          ls -l patchme
 
       - name: 修复分支sublevel 92的问题
         run: |
