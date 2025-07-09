@@ -231,8 +231,8 @@ jobs:
           fi
 
           if [ -f "$PATCHME_DIR/ufshcd-priv.h" ]; then
-            echo "复制 $PATCHME_DIR/ufshcd-priv.h 到 $KERNEL_COMMON_DIR/include/ufs/"
-            cp "$PATCHME_DIR/ufshcd-priv.h" "$KERNEL_COMMON_DIR/include/ufs/ufshcd-priv.h"
+            echo "复制 $PATCHME_DIR/ufshcd-priv.h 到 $KERNEL_COMMON_DIR/drivers/ufs/core/"
+            cp "$PATCHME_DIR/ufshcd-priv.h" "$KERNEL_COMMON_DIR/drivers/ufs/core/ufshcd-priv.h"
           else
             echo "::warning:: $PATCHME_DIR/ufshcd-priv.h 未找到，跳过复制。"
           fi
