@@ -1,0 +1,265 @@
+From 6da1d9e7e5dab61e21d9e877ecb157638490d97a Mon Sep 17 00:00:00 2001
+From: 4532sde <12117177372qq.com>
+Date: Fri, 11 Jul 2025 17:38:56 +0800
+Subject: [PATCH] zram1
+
+Change-Id: I68f44c2deb6afc4d4f864e8d029d4819c67f1073
+---
+ kernel/sysctl.c |  30 +++++++++++++
+ mm/Kconfig      |  33 ++++++++++++++
+ mm/page_alloc.c | 112 +++++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 145 insertions(+), 30 deletions(-)
+
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index c279c4ecc..137a3dcc2 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -81,6 +81,9 @@
+ #include <linux/rtmutex.h>
+ #endif
+ 
++extern int sidezram_control;
++extern int sidezram_threshold_percent;
++extern int sidezram_buffer_percent;
+ /* shared constants to be used in various sysctls */
+ const int sysctl_vals[] = { 0, 1, 2, 3, 4, 100, 200, 1000, 3000, INT_MAX, 65535, -1 };
+ EXPORT_SYMBOL(sysctl_vals);
+@@ -2070,6 +2073,33 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= overcommit_kbytes_handler,
+ 	},
++	{
++		.procname	= "sidezram_control",
++		.data		= &sidezram_control,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= SYSCTL_ZERO,
++		.extra2		= SYSCTL_ONE_HUNDRED, /* max 3 */
++	},
++	{
++		.procname	= "sidezram_threshold_percent",
++		.data		= &sidezram_threshold_percent,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= SYSCTL_ZERO,
++		.extra2		= SYSCTL_ONE_HUNDRED, /* max 100 */
++	},
++	{
++		.procname	= "sidezram_buffer_percent",
++		.data		= &sidezram_buffer_percent,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= SYSCTL_ZERO,
++		.extra2		= SYSCTL_ONE_HUNDRED, /* max 100 */
++	},
+ 	{
+ 		.procname	= "page-cluster",
+ 		.data		= &page_cluster,
+diff --git a/mm/Kconfig b/mm/Kconfig
+index ceb2abded..190323a65 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -1316,6 +1316,39 @@ config LOCK_MM_AND_FIND_VMA
+ 	bool
+ 	depends on !STACK_GROWSUP
+ 
++
++config SIDE_ZRAM_CONTROL
++	int "Side zram control mode"
++	range 0 100
++	default 3
++	help
++	  Selects the zram control algorithm.
++	  0: Disabled. Uses the default kernel watermark calculation.
++	  1: Reserved. Behaves like 0.
++	  2: Aggressive mode. Starts reclaim when memory usage hits
++	     sidezram_threshold_percent.
++	  3: Enhanced aggressive mode. Starts reclaim at
++	     sidezram_threshold_percent and stops when usage drops below
++	     (threshold - buffer).
++
++config SIDE_ZRAM_THRESHOLD_PERCENT
++	int "Side zram reclaim threshold percentage"
++	range 0 100
++	default 94
++	depends on SIDE_ZRAM_CONTROL > 1
++	help
++	  Memory usage percentage that triggers aggressive reclaim when
++	  sidezram_control is set to 2 or 3.
++
++config SIDE_ZRAM_BUFFER_PERCENT
++	int "Side zram reclaim buffer percentage"
++	range 0 100
++	default 9
++	depends on SIDE_ZRAM_CONTROL = 3
++	help
++	  The buffer used in enhanced aggressive mode (mode 3). Reclaim
++	  continues until memory usage is below (threshold - buffer).
++
+ source "mm/damon/Kconfig"
+ 
+ endmenu
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f2c69256e..b84e64a1f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -71,7 +71,10 @@
+ 
+ EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_alloc);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_free);
+-
++#include <linux/swap.h>
++int sidezram_control = CONFIG_SIDE_ZRAM_CONTROL;
++int sidezram_threshold_percent = CONFIG_SIDE_ZRAM_THRESHOLD_PERCENT;
++int sidezram_buffer_percent = CONFIG_SIDE_ZRAM_BUFFER_PERCENT;
+ /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
+ typedef int __bitwise fpi_t;
+ 
+@@ -5984,63 +5987,112 @@ static void __setup_per_zone_wmarks(void)
+ 	struct zone *zone;
+ 	unsigned long flags;
+ 
+-	/* Calculate total number of pages below ZONE_HIGHMEM */
++	/* Calculate total number of !ZONE_HIGHMEM pages */
+ 	for_each_zone(zone) {
+-		if (zone_idx(zone) <= ZONE_NORMAL)
++		if (!is_highmem(zone))
+ 			lowmem_pages += zone_managed_pages(zone);
+ 	}
+ 
+ 	for_each_zone(zone) {
+ 		u64 tmp;
++		unsigned long managed_pages = zone_managed_pages(zone);
+ 
+ 		spin_lock_irqsave(&zone->lock, flags);
+-		tmp = (u64)pages_min * zone_managed_pages(zone);
+-		do_div(tmp, lowmem_pages);
++
++		tmp = (u64)pages_min * managed_pages;
++		if (lowmem_pages)
++			do_div(tmp, lowmem_pages);
++		else
++			tmp = 0;
++
+ 		if (zone_idx(zone) > ZONE_NORMAL) {
+-			/*
+-			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
+-			 * need pages from zones above ZONE_NORMAL, so cap
+-			 * pages_min to a small value here.
+-			 *
+-			 * The WMARK_HIGH-WMARK_LOW and (WMARK_LOW-WMARK_MIN)
+-			 * deltas control async page reclaim, and so should
+-			 * not be capped for highmem and movable zones.
+-			 */
+ 			unsigned long min_pages;
+ 
+-			min_pages = zone_managed_pages(zone) / 1024;
++			min_pages = managed_pages / 1024;
+ 			min_pages = clamp(min_pages, SWAP_CLUSTER_MAX, 128UL);
+ 			zone->_watermark[WMARK_MIN] = min_pages;
+ 		} else {
+-			/*
+-			 * If it's a lowmem zone, reserve a number of pages
+-			 * proportionate to the zone's size.
+-			 */
+ 			zone->_watermark[WMARK_MIN] = tmp;
+ 		}
+ 
+-		/*
+-		 * Set the kswapd watermarks distance according to the
+-		 * scale factor in proportion to available memory, but
+-		 * ensure a minimum size on small systems.
+-		 */
+ 		tmp = max_t(u64, tmp >> 2,
+-			    mult_frac(zone_managed_pages(zone),
++			    mult_frac(managed_pages,
+ 				      watermark_scale_factor, 10000));
+ 
+ 		zone->watermark_boost = 0;
+-		zone->_watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
+-		zone->_watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
++
++		/*
++		 * ======================= 内核修改开始 =======================
++		 * 根据 sidezram_control 的值，决定如何设置内存水位线
++		 */
++		switch (sidezram_control) {
++		case 1: { /* 模式 1: 激进的“官方”回收逻辑 */
++			unsigned long aggressive_gap;
++
++			/*
++			 * “回收更多”：我们计算一个比默认 `tmp` 大得多的差值(gap)。
++			 * 这里我们模拟 watermark_scale_factor=200 的效果 (默认为10),
++			 * 也就是 zone 大小的 2%。这会大大增加 kswapd 单次回收的量。
++			 */
++			aggressive_gap = max_t(u64, tmp,
++						   mult_frac(managed_pages, 200, 10000));
++
++			/*
++			 * “回收更早”+“回收更多”：
++			 * 通过使用这个更大的 `aggressive_gap` 来设置 WMARK_LOW 和 WMARK_HIGH,
++			 * 我们同时提高了回收的触发水位线（更早）和回收的目标（更多）。
++			 */
++			zone->_watermark[WMARK_LOW]  = min_wmark_pages(zone) + aggressive_gap;
++			zone->_watermark[WMARK_HIGH] = low_wmark_pages(zone) + aggressive_gap;
++			break;
++		}
++		case 2: { /* 模式 2: 激进回收模式 */
++			unsigned long aggressive_wmark_low;
++
++			aggressive_wmark_low = managed_pages * (100 - sidezram_threshold_percent) / 100;
++			aggressive_wmark_low = max(aggressive_wmark_low, min_wmark_pages(zone));
++
++			zone->_watermark[WMARK_LOW] = aggressive_wmark_low;
++			zone->_watermark[WMARK_HIGH] = min(aggressive_wmark_low + tmp, managed_pages - 1);
++			break;
++		}
++		case 3: { /* 模式 3: 带缓冲区的增强激进模式 */
++			unsigned long aggressive_wmark_low, aggressive_wmark_high;
++			int target_free_percent;
++
++			aggressive_wmark_low = managed_pages * (100 - sidezram_threshold_percent) / 100;
++			aggressive_wmark_low = max(aggressive_wmark_low, min_wmark_pages(zone));
++
++			target_free_percent = 100 - (sidezram_threshold_percent - sidezram_buffer_percent);
++
++			if (target_free_percent <= (100 - sidezram_threshold_percent) || target_free_percent > 100) {
++				aggressive_wmark_high = min(aggressive_wmark_low + tmp, managed_pages - 1);
++			} else {
++				aggressive_wmark_high = managed_pages * target_free_percent / 100;
++			}
++
++			aggressive_wmark_high = max(aggressive_wmark_high, aggressive_wmark_low + tmp);
++			aggressive_wmark_high = min(aggressive_wmark_high, managed_pages - 1);
++
++			zone->_watermark[WMARK_LOW] = aggressive_wmark_low;
++			zone->_watermark[WMARK_HIGH] = aggressive_wmark_high;
++			break;
++		}
++		default: /* 模式 0 或其他无效值: 使用内核原始逻辑 */
++			zone->_watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
++			zone->_watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
++			break;
++		}
++		/* ======================== 内核修改结束 ======================== */
++
+ 		zone->_watermark[WMARK_PROMO] = high_wmark_pages(zone) + tmp;
+ 		trace_android_vh_init_adjust_zone_wmark(zone, tmp);
+ 
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+ 	}
+-
+-	/* update totalreserve_pages */
+-	calculate_totalreserve_pages();
+ }
+ 
++
+ /**
+  * setup_per_zone_wmarks - called when min_free_kbytes changes
+  * or when memory is hot-{added|removed}
+-- 
+2.25.1
+
