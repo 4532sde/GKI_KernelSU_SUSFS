@@ -395,11 +395,14 @@ jobs:
           fi
           echo "补丁文件: $PATCH_FILE"
           echo "目标内核目录: $KERNEL_DIR"
-          echo "-> 正在检查补丁是否能被干净应用..."
-          git -C "$KERNEL_DIR" apply --check "$PATCH_FILE"
-          echo "-> 检查通过，正在应用补丁..."
-          git -C "$KERNEL_DIR" apply --verbose "$PATCH_FILE"
-          echo "✅ 自定义补丁应用成功。"
+          if patch -p1 -d "$KERNEL_DIR" -i "$PATCH_FILE" --dry-run; then
+            echo "-> 检查通过，正在应用补丁..."
+            patch -p1 -d "$KERNEL_DIR" -i "$PATCH_FILE"
+            echo "✅ 自定义补丁应用成功。"
+          else
+            echo "::error::使用 patch 命令检查失败，补丁冲突过大。"
+            exit 1
+          fi
 
       - name: 复制补丁到 block 目录
         run: |
