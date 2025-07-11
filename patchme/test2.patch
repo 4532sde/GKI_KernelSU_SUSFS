@@ -34,7 +34,7 @@ index c279c4ecc..a60bdc56e 100644
 +    .mode       = 0644,
 +    .proc_handler = proc_dointvec_minmax,
 +    .extra1     = SYSCTL_ZERO,  // Minimum value: 0
-+    .extra2     = (void *)95,   // Maximum value: 95
++    .extra2     = SYSCTL_ONE_HUNDRED,   // Maximum value: 95
 +	},
  #ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
  	{
@@ -51,7 +51,7 @@ index ceb2abded..b989da096 100644
 +config AGGRESSIVE_WMARK_PERCENT
 +    int "Aggressive watermark usage percentage (0 to disable)"
 +    range 0 95
-+    default 60
++    default 80
 +    help
 +      This option sets the default percentage of memory USAGE that
 +      triggers aggressive background reclaim (kswapd). It is intended
