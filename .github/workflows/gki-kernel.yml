@@ -387,7 +387,7 @@ jobs:
       - name: 应用自定义补丁test2
         run: |
           echo "准备应用自定义补丁2..."
-          PATCH_FILE="${{ github.workspace }}/patchme/test2.patch"
+          PATCH_FILE="${{ github.workspace }}/patchme/test2fix.patch"
           KERNEL_DIR="./$CONFIG/common" 
           if [ ! -f "$PATCH_FILE" ]; then
             echo "::error::自定义补丁文件未找到: $PATCH_FILE"
