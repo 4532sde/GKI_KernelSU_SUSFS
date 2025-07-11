@@ -315,11 +315,33 @@ jobs:
             git -C "$KERNEL_DIR" apply --verbose "$PATCH_FILE"
             echo "✅ 自定义补丁4应用成功。"
           fi
-          
+
       - name: 应用自定义补丁test2
+        if: ${{ inputs.sub_level != '92' }}
         run: |
           echo "准备应用自定义补丁2..."
           PATCH_FILE="${{ github.workspace }}/patchme/test2next.patch"
+          KERNEL_DIR="./$CONFIG/common" 
+          if [ ! -f "$PATCH_FILE" ]; then
+            echo "::error::自定义补丁文件未找到: $PATCH_FILE"
+            exit 1
+          fi
+          echo "补丁文件: $PATCH_FILE"
+          echo "目标内核目录: $KERNEL_DIR"
+          if patch -p1 -d "$KERNEL_DIR" -i "$PATCH_FILE" --dry-run; then
+            echo "-> 检查通过，正在应用补丁..."
+            patch -p1 -d "$KERNEL_DIR" -i "$PATCH_FILE"
+            echo "✅ 自定义补丁应用成功。"
+          else
+            echo "::error::使用 patch 命令检查失败，补丁冲突过大。"
+            exit 1
+          fi
+
+      - name: 应用自定义补丁test292
+        if: ${{ inputs.sub_level == '92' }}
+        run: |
+          echo "准备应用自定义补丁2..."
+          PATCH_FILE="${{ github.workspace }}/patchme/test2next92.patch"
           KERNEL_DIR="./$CONFIG/common" 
           if [ ! -f "$PATCH_FILE" ]; then
             echo "::error::自定义补丁文件未找到: $PATCH_FILE"
