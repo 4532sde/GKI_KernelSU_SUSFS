@@ -315,10 +315,11 @@ jobs:
             git -C "$KERNEL_DIR" apply --verbose "$PATCH_FILE"
             echo "✅ 自定义补丁4应用成功。"
           fi
+          
       - name: 应用自定义补丁test2
         run: |
           echo "准备应用自定义补丁2..."
-          PATCH_FILE="${{ github.workspace }}/patchme/test2fix.patch"
+          PATCH_FILE="${{ github.workspace }}/patchme/test2.patch"
           KERNEL_DIR="./$CONFIG/common" 
           if [ ! -f "$PATCH_FILE" ]; then
             echo "::error::自定义补丁文件未找到: $PATCH_FILE"
