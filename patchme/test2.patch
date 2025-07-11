@@ -1,0 +1,175 @@
+From de16741dc5c0205c2cfdddecf8a0543272094ec3 Mon Sep 17 00:00:00 2001
+From: 4532sde <baidu4532@outlook.com>
+Date: Fri, 11 Jul 2025 13:42:18 +0800
+Subject: [PATCH] try IMPORVE PERFORMANCE
+
+Change-Id: I2b5683f80b8bca701225b5722b9f5da9bb6f6693
+---
+ kernel/sysctl.c | 11 ++++++++
+ mm/Kconfig      | 17 ++++++++++++
+ mm/page_alloc.c | 72 ++++++++++++++++++++++++++++++-------------------
+ 3 files changed, 73 insertions(+), 27 deletions(-)
+
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index c279c4ecc..a60bdc56e 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -81,6 +81,8 @@
+ #include <linux/rtmutex.h>
+ #endif
+ 
++
++extern int aggressive_wmark_percent;
+ /* shared constants to be used in various sysctls */
+ const int sysctl_vals[] = { 0, 1, 2, 3, 4, 100, 200, 1000, 3000, INT_MAX, 65535, -1 };
+ EXPORT_SYMBOL(sysctl_vals);
+@@ -2227,6 +2229,15 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= proc_doulongvec_minmax,
+ 	},
++	{
++    .procname   = "aggressive_wmark_percent",
++    .data       = &aggressive_wmark_percent,
++    .maxlen     = sizeof(int),
++    .mode       = 0644,
++    .proc_handler = proc_dointvec_minmax,
++    .extra1     = SYSCTL_ZERO,  // Minimum value: 0
++    .extra2     = (void *)95,   // Maximum value: 95
++	},
+ #ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
+ 	{
+ 		.procname	= "mmap_rnd_bits",
+diff --git a/mm/Kconfig b/mm/Kconfig
+index ceb2abded..b989da096 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -1316,6 +1316,23 @@ config LOCK_MM_AND_FIND_VMA
+ 	bool
+ 	depends on !STACK_GROWSUP
+ 
++
++config AGGRESSIVE_WMARK_PERCENT
++    int "Aggressive watermark usage percentage (0 to disable)"
++    range 0 95
++    default 60
++    help
++      This option sets the default percentage of memory USAGE that
++      triggers aggressive background reclaim (kswapd). It is intended
++      for special use cases like forcing memory into zram.
++
++      A value of 60 means kswapd starts when 60% of memory is used.
++      A value of 0 disables this aggressive behavior, and the system
++      reverts to the standard kernel logic.
++
++      This value can be changed at runtime via the sysctl
++      /proc/sys/vm/aggressive_wmark_percent.
++
+ source "mm/damon/Kconfig"
+ 
+ endmenu
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f2c69256e..62323b38b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -68,7 +68,8 @@
+ 
+ #undef CREATE_TRACE_POINTS
+ #include <trace/hooks/mm.h>
+-
++#include <linux/swap.h>
++int aggressive_wmark_percent = CONFIG_AGGRESSIVE_WMARK_PERCENT;
+ EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_alloc);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_free);
+ 
+@@ -5992,45 +5993,62 @@ static void __setup_per_zone_wmarks(void)
+ 
+ 	for_each_zone(zone) {
+ 		u64 tmp;
++		unsigned long managed_pages = zone_managed_pages(zone);
+ 
+ 		spin_lock_irqsave(&zone->lock, flags);
+-		tmp = (u64)pages_min * zone_managed_pages(zone);
+-		do_div(tmp, lowmem_pages);
++
++		/*
++		 * Step 1: Calculate WMARK_MIN. 'tmp' is first used to hold a
++		 * proportional value based on min_free_kbytes.
++		 */
++		tmp = (u64)pages_min * managed_pages;
++		if (lowmem_pages)
++			do_div(tmp, lowmem_pages);
++		else
++			tmp = 0;
++
+ 		if (zone_idx(zone) > ZONE_NORMAL) {
+-			/*
+-			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
+-			 * need pages from zones above ZONE_NORMAL, so cap
+-			 * pages_min to a small value here.
+-			 *
+-			 * The WMARK_HIGH-WMARK_LOW and (WMARK_LOW-WMARK_MIN)
+-			 * deltas control async page reclaim, and so should
+-			 * not be capped for highmem and movable zones.
+-			 */
+ 			unsigned long min_pages;
+-
+-			min_pages = zone_managed_pages(zone) / 1024;
++			min_pages = managed_pages / 1024;
+ 			min_pages = clamp(min_pages, SWAP_CLUSTER_MAX, 128UL);
+ 			zone->_watermark[WMARK_MIN] = min_pages;
+ 		} else {
+-			/*
+-			 * If it's a lowmem zone, reserve a number of pages
+-			 * proportionate to the zone's size.
+-			 */
+ 			zone->_watermark[WMARK_MIN] = tmp;
+ 		}
+ 
+-		/*
+-		 * Set the kswapd watermarks distance according to the
+-		 * scale factor in proportion to available memory, but
+-		 * ensure a minimum size on small systems.
+-		 */
+ 		tmp = max_t(u64, tmp >> 2,
+-			    mult_frac(zone_managed_pages(zone),
+-				      watermark_scale_factor, 10000));
++				 mult_frac(managed_pages,
++					   watermark_scale_factor, 10000));
+ 
+ 		zone->watermark_boost = 0;
+-		zone->_watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
+-		zone->_watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
++
++		/*
++		 * ======================= KERNEL MODIFICATION START =======================
++		 * Step 3: Based on aggressive_wmark_percent, decide how to set
++		 * WMARK_LOW and WMARK_HIGH using the calculated gap in 'tmp'.
++		 */
++		if (aggressive_wmark_percent > 0) {
++			unsigned long aggressive_wmark_low;
++
++			/* AGGRESSIVE LOGIC */
++			/* Base WMARK_LOW on the desired usage percentage */
++			aggressive_wmark_low = managed_pages * (100 - aggressive_wmark_percent) / 100;
++
++			/* Ensure the new WMARK_LOW is not below the absolute minimum */
++			aggressive_wmark_low = max(aggressive_wmark_low, min_wmark_pages(zone));
++
++			zone->_watermark[WMARK_LOW] = aggressive_wmark_low;
++
++			/* Set WMARK_HIGH relative to the new WMARK_LOW, ensuring it does not overflow */
++			zone->_watermark[WMARK_HIGH] = min(aggressive_wmark_low + tmp,
++							   managed_pages - 1);
++		} else {
++			/* ORIGINAL KERNEL LOGIC */
++			zone->_watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
++			zone->_watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
++		}
++		/* ======================== KERNEL MODIFICATION END ======================== */
++
+ 		zone->_watermark[WMARK_PROMO] = high_wmark_pages(zone) + tmp;
+ 		trace_android_vh_init_adjust_zone_wmark(zone, tmp);
+ 
+-- 
+2.25.1
+
