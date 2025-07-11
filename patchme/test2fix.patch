@@ -51,7 +51,7 @@ index ceb2abded..b989da096 100644
 +config AGGRESSIVE_WMARK_PERCENT
 +    int "Aggressive watermark usage percentage (0 to disable)"
 +    range 0 100
-+    default 60
++    default 85
 +    help
 +      This option sets the default percentage of memory USAGE that
 +      triggers aggressive background reclaim (kswapd). It is intended
